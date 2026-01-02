@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creating Free Tier PostgreSQL RDS with AWS Secrets Manager
+
+Parameters:
+  DBName:
+    Type: String
+    Default: employee_db
+
+  DBUsername:
+    Type: String
+    Default: admin
+
+Resources:
+  PostgresSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow PostgreSQL access
+      VpcId: !Ref AWS::NoValue
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 0.0.0.0/0
+
+  PostgresSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: prod/postgres/employee-db
+      Description: PostgreSQL credentials
+      GenerateSecretString:
+        SecretStringTemplate: !Sub |
+          {
+            "username": "${DBUsername}",
+            "dbname": "${DBName}",
+            "port": 5432
+          }
+        GenerateStringKey: password
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+
+  PostgresDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: postgres-free-tier-db
+      Engine: postgres
+      EngineVersion: '15.4'
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 20
+      StorageType: gp2
+      DBName: !Ref DBName
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Join
+        - ''
+        - - '{{resolve:secretsmanager:'
+          - !Ref PostgresSecret
+          - ':SecretString:password}}'
+      PubliclyAccessible: true
+      VPCSecurityGroups:
+        - !GetAtt PostgresSecurityGroup.GroupId
+      BackupRetentionPeriod: 0
+      MultiAZ: false
+      DeletionProtection: false
+
+  SecretAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref PostgresSecret
+      TargetId: !Ref PostgresDB
+      TargetType: AWS::RDS::DBInstance
+
+Outputs:
+  DBEndpoint:
+    Description: PostgreSQL Endpoint
+    Value: !GetAtt PostgresDB.Endpoint.Address
+
+  SecretName:
+    Description: Secrets Manager name
+    Value: !Ref PostgresSecret
