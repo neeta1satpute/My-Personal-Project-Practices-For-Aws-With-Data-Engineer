@@ -2,15 +2,19 @@ version: 0.2
 
 phases:
   install:
+    runtime-versions:
+      python: 3.9
     commands:
-      - echo Installing dependencies...
+      - echo "Installing dependencies..."
+      - python --version
       - python -m pip install --upgrade pip
-      - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - pip3 install -r requirements.txt
+
   build:
     commands:
-      - echo Running tests...
-      - python -m pytest tests/ || true   # run tests but don’t fail build for demo
-      # - python app.py   # remove this in build, run in deploy instead
+      - echo "Running tests..."
+      - python -m pytest tests/ || true
+
 artifacts:
   files:
     - '**/*'
