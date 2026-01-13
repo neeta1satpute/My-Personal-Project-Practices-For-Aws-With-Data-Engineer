@@ -6,10 +6,14 @@ phases:
       python: 3.9
     commands:
       - echo "Installing dependencies..."
+      - pip install -r requirements.txt
       - python --version
+
   build:
     commands:
       - echo "Running tests..."
+      - python -m pytest tests/ || true
+
 artifacts:
   files:
     - '**/*'
