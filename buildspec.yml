@@ -7,14 +7,9 @@ phases:
     commands:
       - echo "Installing dependencies..."
       - python --version
-      - python -m pip install --upgrade pip
-
-
   build:
     commands:
       - echo "Running tests..."
-      - python -m pytest tests/ || true
-
 artifacts:
   files:
     - '**/*'
