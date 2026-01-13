@@ -1,0 +1,13 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+  build:
+    commands:
+      - echo "Build started"
+      - python app.py
+  post_build:
+    commands:
+      - echo "Build completed successfully"
