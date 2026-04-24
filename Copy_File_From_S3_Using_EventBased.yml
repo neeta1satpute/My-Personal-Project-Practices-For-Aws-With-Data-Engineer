@@ -14,10 +14,21 @@ Parameters:
 
   FunctionName:
     Type: String
-    Default: MoveFileLambda   # THIS is actual Lambda name used everywhere
+    Default: MoveFileLambda
     Description: Lambda function name
 
+# ==============================
+# RESOURCES
+# ==============================
 Resources:
+
+  # ==============================
+  # PROJECT CODE BUCKET (NEW ADDITION)
+  # ==============================
+  ProjectCodeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: my-de-project-code-bucket   #  YOUR CODE STORAGE BUCKET
 
   # ==============================
   # SOURCE S3 BUCKET
@@ -39,7 +50,7 @@ Resources:
       BucketName: !Ref DestinationBucket
 
   # ==============================
-  # LAMBDA IAM ROLE
+  # IAM ROLE FOR LAMBDA
   # ==============================
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -58,7 +69,6 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              # S3 permissions
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -70,8 +80,8 @@ Resources:
                   - !Sub arn:aws:s3:::${SourceBucket}
                   - !Sub arn:aws:s3:::${SourceBucket}/*
                   - !Sub arn:aws:s3:::${DestinationBucket}/*
+                  - !GetAtt ProjectCodeBucket.Arn   # ACCESS TO CODE BUCKET
 
-              # CloudWatch Logs
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
@@ -85,16 +95,16 @@ Resources:
   MoveFileLambda:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Ref FunctionName   # FINAL Lambda name = MoveFileLambda
+      FunctionName: !Ref FunctionName
       Runtime: python3.11
-      Handler: MoveFileLambda.lambda_handler  # ✅ FIXED (your file name)
+      Handler: ingest_lambda_src_to_des.lambda_handler  #  UPDATED FILE NAME
 
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 300
 
       Code:
-        S3Bucket: my-dataengineer-eventbased-eventbridge-projects
-        S3Key: lambda-code/move-file-lambda/move-file-lambda.zip
+        S3Bucket: my-de-project-code-bucket   #  CODE FROM YOUR PROJECT BUCKET
+        S3Key: functions/lambda/ingest_lambda_src_to_des.py
 
       Environment:
         Variables:
@@ -122,7 +132,7 @@ Resources:
           Id: LambdaTarget
 
   # ==============================
-  # PERMISSION FOR EVENTBRIDGE
+  # LAMBDA PERMISSION
   # ==============================
   LambdaPermissionForEventBridge:
     Type: AWS::Lambda::Permission
