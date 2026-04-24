@@ -7,10 +7,12 @@ Parameters:
   SourceBucket:
     Type: String
     Description: Source S3 bucket name
+    Default: my-de-eventbased-source-bucket
 
   DestinationBucket:
     Type: String
     Description: Destination S3 bucket name
+    Default: my-de-eventbased-destination-bucket
 
   FunctionName:
     Type: String

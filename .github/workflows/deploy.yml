@@ -3,28 +3,44 @@ name: Deploy Lambda
 on:
   push:
     branches:
-      - main
+      - dev   # Only dev branch push var deployment trigger hoil
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest   #GitHub hosted runner (Linux machine)
 
     steps:
+      # ===============================
+      # 1️⃣ Checkout repository code
+      # ===============================
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3   #Repo code runner environment madhe gheto
 
+      # ===============================
+      # 2️⃣ ZIP LAMBDA CODE (FIXED SECTION)
+      # ===============================
       - name: Zip Lambda code
-        run: zip -r function.zip lambda_function.py
+        run: |
+          cd Function   #IMPORTANT: Function folder madhe enter karto
+          
+          #FIX: entire folder zip karto (safe + production standard)
+          zip -r ../function.zip .  
 
+      # ===============================
+      # 3️⃣ AWS Credentials setup
+      # ===============================
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v2   #AWS login setup
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}        # 🔐 GitHub secret
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # 🔐 GitHub secret
+          region: ${{ secrets.AWS_REGION }}                           # 🌍 AWS region
 
+      # ===============================
+      # 4️⃣ DEPLOY TO AWS LAMBDA
+      # ===============================
       - name: Deploy to Lambda
         run: |
           aws lambda update-function-code \
-          --function-name my-first-lambda \
-          --zip-file fileb://function.zip
+          --function-name my-first-lambda \   # YOUR Lambda function name in AWS
+          --zip-file fileb://function.zip     # zipped code deploy karto
