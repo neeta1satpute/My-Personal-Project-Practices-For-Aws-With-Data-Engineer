@@ -47,7 +47,6 @@ jobs:
       # =========================
       - name: Deploy to Lambda
         run: |
-          # IMPORTANT: Lambda function name MUST match AWS console
           aws lambda update-function-code \
-            --function-name MoveFileLambda \
+            --function-name MoveFileLambda \   # NEW correct name
             --zip-file fileb://function.zip
