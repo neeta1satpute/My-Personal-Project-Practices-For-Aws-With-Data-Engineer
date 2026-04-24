@@ -2,48 +2,51 @@ name: Deploy Lambda
 
 on:
   push:
-    branches: [dev]   # dev branch push झाल्यावर workflow run होईल
+    branches: [dev]
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest   # GitHub hosted Linux runner
+    runs-on: ubuntu-latest
 
     steps:
 
-      # =========================
-      # 1️⃣ Checkout repo code
-      # =========================
-      - name: Checkout code
-        uses: actions/checkout@v3
+    # =========================
+    # 1. Checkout code
+    # =========================
+    - name: Checkout repo
+      uses: actions/checkout@v3
 
+    # =========================
+    # 2. Zip Lambda code
+    # =========================
+    - name: Zip Lambda
+      run: |
+        cd functions
+        zip -r ../function.zip .
 
-      # =========================
-      # 2️⃣ ZIP Lambda code (FIXED)
-      # =========================
-      - name: Zip Lambda code
-        run: |
-          # FIX: repo मध्ये "functions" folder आहे (not Function)
-          cd functions
+    # =========================
+    # 3. AWS login
+    # =========================
+    - name: Configure AWS
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-          # entire folder zip करून root मध्ये function.zip तयार करतो
-          zip -r ../function.zip .
+    # =========================
+    # 4. Upload zip to S3
+    # =========================
+    - name: Upload to S3
+      run: |
+        aws s3 cp function.zip s3://my-lambda-code-bucket-12345/function.zip
 
-
-      # =========================
-      # 3️⃣ AWS Credentials setup
-      # =========================
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-          # FIX: correct key name (aws-region)
-          aws-region: ${{ secrets.AWS_REGION }}
-
-
-      # =========================
-      # 4️⃣ Deploy to Lambda
-      # =========================
-      - name: Deploy to Lambda
-        run: aws lambda update-function-code --function-name MoveFileLambda --zip-file fileb://function.zip
+    # =========================
+    # 5. Deploy Lambda
+    # =========================
+    - name: Update Lambda
+      run: |
+        aws lambda update-function-code \
+          --function-name MoveFileLambda \
+          --s3-bucket my-lambda-code-bucket-12345 \
+          --s3-key function.zip

@@ -1,143 +1,98 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Event-based file move from S3 source to destination using Lambda (EventBridge enabled)
+Description: Full Lambda + S3 + EventBridge setup
 
 Parameters:
   SourceBucket:
     Type: String
-    Description: Source S3 bucket name
     Default: my-de-eventbased-source-bucket
 
   DestinationBucket:
     Type: String
-    Description: Destination S3 bucket name
     Default: my-de-eventbased-destination-bucket
+
+  CodeBucket:
+    Type: String
+    Default: my-lambda-code-bucket-12345   # 👈 NEW bucket for code
 
   FunctionName:
     Type: String
     Default: MoveFileLambda
-    Description: Lambda function name
 
-# ==============================
-# RESOURCES
-# ==============================
 Resources:
 
-  # ==============================
-  # PROJECT CODE BUCKET (NEW ADDITION)
-  # ==============================
-  ProjectCodeBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: my-de-project-code-bucket   #  YOUR CODE STORAGE BUCKET
+# ======================
+# SOURCE BUCKET
+# ======================
+SourceS3Bucket:
+  Type: AWS::S3::Bucket
+  Properties:
+    BucketName: !Ref SourceBucket
+    NotificationConfiguration:
+      EventBridgeConfiguration:
+        EventBridgeEnabled: true
 
-  # ==============================
-  # SOURCE S3 BUCKET
-  # ==============================
-  SourceS3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref SourceBucket
-      NotificationConfiguration:
-        EventBridgeConfiguration:
-          EventBridgeEnabled: true
+# ======================
+# DESTINATION BUCKET
+# ======================
+DestinationBucket:
+  Type: AWS::S3::Bucket
+  Properties:
+    BucketName: !Ref DestinationBucket
 
-  # ==============================
-  # DESTINATION S3 BUCKET
-  # ==============================
-  DestinationBucketResource:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref DestinationBucket
+# ======================
+# CODE BUCKET (IMPORTANT)
+# ======================
+LambdaCodeBucket:
+  Type: AWS::S3::Bucket
+  Properties:
+    BucketName: !Ref CodeBucket
 
-  # ==============================
-  # IAM ROLE FOR LAMBDA
-  # ==============================
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub "${FunctionName}-Role"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
+# ======================
+# IAM ROLE
+# ======================
+LambdaRole:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: !Sub "${FunctionName}-role"
+    AssumeRolePolicyDocument:
+      Version: "2012-10-17"
+      Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+    Policies:
+      - PolicyName: S3Access
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - logs:*
+              Resource: "*"
 
-      Policies:
-        - PolicyName: LambdaS3Policy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:DeleteObject
-                  - s3:CopyObject
-                  - s3:ListBucket
-                Resource:
-                  - !Sub arn:aws:s3:::${SourceBucket}
-                  - !Sub arn:aws:s3:::${SourceBucket}/*
-                  - !Sub arn:aws:s3:::${DestinationBucket}/*
-                  - !GetAtt ProjectCodeBucket.Arn   # ACCESS TO CODE BUCKET
+# ======================
+# LAMBDA FUNCTION
+# ======================
+MoveFileLambda:
+  Type: AWS::Lambda::Function
+  Properties:
+    FunctionName: !Ref FunctionName
+    Runtime: python3.11
+    Handler: MoveFileLambda.lambda_handler
+    Role: !GetAtt LambdaRole.Arn
+    Timeout: 300
 
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: "*"
+    Code:
+      S3Bucket: !Ref CodeBucket   # 👈 IMPORTANT
+      S3Key: function.zip
 
-  # ==============================
-  # LAMBDA FUNCTION
-  # ==============================
-  MoveFileLambda:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Ref FunctionName
-      Runtime: python3.11
-      Handler: MoveFileLambda.lambda_handler  #  UPDATED FILE NAME
-
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Timeout: 300
-
-      Code:
-        S3Bucket: my-de-project-code-bucket   #  CODE FROM YOUR PROJECT BUCKET
-        S3Key: functions/lambda/MoveFileLambda.py
-
-      Environment:
-        Variables:
-          SOURCE_BUCKET: !Ref SourceBucket
-          DEST_BUCKET: !Ref DestinationBucket
-
-  # ==============================
-  # EVENTBRIDGE RULE
-  # ==============================
-  S3UploadEventRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: S3UploadEventRule
-      EventPattern:
-        source:
-          - aws.s3
-        detail-type:
-          - Object Created
-        detail:
-          bucket:
-            name:
-              - !Ref SourceBucket
-      Targets:
-        - Arn: !GetAtt MoveFileLambda.Arn
-          Id: LambdaTarget
-
-  # ==============================
-  # LAMBDA PERMISSION
-  # ==============================
-  LambdaPermissionForEventBridge:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref MoveFileLambda
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt S3UploadEventRule.Arn
+    Environment:
+      Variables:
+        SOURCE_BUCKET: !Ref SourceBucket
+        DEST_BUCKET: !Ref DestinationBucket
