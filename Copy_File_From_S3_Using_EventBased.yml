@@ -1,7 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Event-based file move from S3 source to destination using Lambda (EventBridge enabled)
-# my-de-eventbased-destination-bucket
-# my-de-eventbased-source-bucket
 
 Parameters:
   SourceBucket:
@@ -16,14 +14,14 @@ Parameters:
 
   FunctionName:
     Type: String
-    Default: MoveFileLambda
+    Default: MoveFileLambda   # 👉 THIS is actual Lambda name used everywhere
     Description: Lambda function name
 
 Resources:
 
-  # ------------------------------
-  # Source S3 Bucket (EventBridge enabled)
-  # ------------------------------
+  # ==============================
+  # SOURCE S3 BUCKET
+  # ==============================
   SourceS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -32,17 +30,17 @@ Resources:
         EventBridgeConfiguration:
           EventBridgeEnabled: true
 
-  # ------------------------------
-  # Destination S3 Bucket
-  # ------------------------------
+  # ==============================
+  # DESTINATION S3 BUCKET
+  # ==============================
   DestinationBucketResource:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref DestinationBucket
 
-  # ------------------------------
-  # Lambda Execution Role
-  # ------------------------------
+  # ==============================
+  # LAMBDA IAM ROLE
+  # ==============================
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -54,11 +52,13 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
+
       Policies:
         - PolicyName: LambdaS3Policy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
+              # S3 permissions
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -70,6 +70,8 @@ Resources:
                   - !Sub arn:aws:s3:::${SourceBucket}
                   - !Sub arn:aws:s3:::${SourceBucket}/*
                   - !Sub arn:aws:s3:::${DestinationBucket}/*
+
+              # CloudWatch Logs
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
@@ -77,28 +79,31 @@ Resources:
                   - logs:PutLogEvents
                 Resource: "*"
 
-  # ------------------------------
-  # Lambda Function
-  # ------------------------------
+  # ==============================
+  # LAMBDA FUNCTION
+  # ==============================
   MoveFileLambda:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Ref FunctionName
+      FunctionName: !Ref FunctionName   # 👉 FINAL Lambda name = MoveFileLambda
       Runtime: python3.11
-      Handler: Lambda_Function.lambda_handler
+      Handler: ingest_lambda_src_to_des.lambda_handler  # ✅ FIXED (your file name)
+
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 300
+
       Code:
         S3Bucket: my-dataengineer-eventbased-eventbridge-projects
         S3Key: lambda-code/move-file-lambda/move-file-lambda.zip
+
       Environment:
         Variables:
           SOURCE_BUCKET: !Ref SourceBucket
           DEST_BUCKET: !Ref DestinationBucket
 
-  # ------------------------------
-  # EventBridge Rule
-  # ------------------------------
+  # ==============================
+  # EVENTBRIDGE RULE
+  # ==============================
   S3UploadEventRule:
     Type: AWS::Events::Rule
     Properties:
@@ -116,9 +121,9 @@ Resources:
         - Arn: !GetAtt MoveFileLambda.Arn
           Id: LambdaTarget
 
-  # ------------------------------
-  # Permission for EventBridge ? Lambda
-  # ------------------------------
+  # ==============================
+  # PERMISSION FOR EVENTBRIDGE
+  # ==============================
   LambdaPermissionForEventBridge:
     Type: AWS::Lambda::Permission
     Properties:
