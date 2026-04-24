@@ -14,7 +14,7 @@ Parameters:
 
   FunctionName:
     Type: String
-    Default: MoveFileLambda   # 👉 THIS is actual Lambda name used everywhere
+    Default: ingest_lambda_src_to_des   # THIS is actual Lambda name used everywhere
     Description: Lambda function name
 
 Resources:
@@ -85,7 +85,7 @@ Resources:
   MoveFileLambda:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Ref FunctionName   # 👉 FINAL Lambda name = MoveFileLambda
+      FunctionName: !Ref FunctionName   # FINAL Lambda name = MoveFileLambda
       Runtime: python3.11
       Handler: ingest_lambda_src_to_des.lambda_handler  # ✅ FIXED (your file name)
 
