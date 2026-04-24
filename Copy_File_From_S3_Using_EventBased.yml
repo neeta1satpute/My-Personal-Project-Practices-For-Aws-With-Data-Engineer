@@ -14,7 +14,7 @@ Parameters:
 
   FunctionName:
     Type: String
-    Default: ingest_lambda_src_to_des   # THIS is actual Lambda name used everywhere
+    Default: MoveFileLambda   # THIS is actual Lambda name used everywhere
     Description: Lambda function name
 
 Resources:
@@ -87,7 +87,7 @@ Resources:
     Properties:
       FunctionName: !Ref FunctionName   # FINAL Lambda name = MoveFileLambda
       Runtime: python3.11
-      Handler: ingest_lambda_src_to_des.lambda_handler  # ✅ FIXED (your file name)
+      Handler: MoveFileLambda.lambda_handler  # ✅ FIXED (your file name)
 
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 300

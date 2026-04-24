@@ -34,5 +34,5 @@ jobs:
       - name: Deploy to Lambda
         run: |
           aws lambda update-function-code \
-          --function-name ingest_lambda_src_to_des \
+          --function-name MoveFileLambda \
           --zip-file fileb://function.zip
