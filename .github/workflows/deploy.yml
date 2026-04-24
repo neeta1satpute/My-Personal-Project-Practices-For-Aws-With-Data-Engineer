@@ -2,43 +2,37 @@ name: Deploy Lambda
 
 on:
   push:
-    branches: [dev] #dev branch madhe push jhalyavar workflow trigger hoto
+    branches: [dev]
+
 jobs:
   deploy:
-    runs-on: ubuntu-latest   #GitHub hosted runner (Linux machine)
+    runs-on: ubuntu-latest
 
     steps:
-      # ===============================
-      # 1️⃣ Checkout repository code
-      # ===============================
-      - name: Checkout code
-        uses: actions/checkout@v3   #Repo code runner environment madhe gheto
 
-      # ===============================
-      # 2️⃣ ZIP LAMBDA CODE (FIXED SECTION)
-      # ===============================
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # =========================
+      # ZIP FIXED (IMPORTANT)
+      # =========================
       - name: Zip Lambda code
         run: |
-          cd Function   #IMPORTANT: Function folder madhe enter karto
-          
-          #FIX: entire folder zip karto (safe + production standard)
-          zip -r ../function.zip .  
+          cd functions   # 👉 FIXED folder name
+          zip -r ../function.zip .
 
-      # ===============================
-      # 3️⃣ AWS Credentials setup
-      # ===============================
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2   #AWS login setup
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}        # 🔐 GitHub secret
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # 🔐 GitHub secret
-          region: ${{ secrets.AWS_REGION }}                           # 🌍 AWS region
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          region: ${{ secrets.AWS_REGION }}
 
-      # ===============================
-      # 4️⃣ DEPLOY TO AWS LAMBDA
-      # ===============================
+      # =========================
+      # DEPLOY FIXED
+      # =========================
       - name: Deploy to Lambda
         run: |
           aws lambda update-function-code \
-          --function-name ingest_lambda_src_to_des.py \   # YOUR Lambda function name in AWS
-          --zip-file fileb://function.zip     # zipped code deploy karto
+          --function-name ingest_lambda_src_to_des \
+          --zip-file fileb://function.zip
