@@ -40,5 +40,5 @@ jobs:
       - name: Deploy to Lambda
         run: |
           aws lambda update-function-code \
-          --function-name my-first-lambda \   # YOUR Lambda function name in AWS
+          --function-name ingest_lambda_src_to_des.py \   # YOUR Lambda function name in AWS
           --zip-file fileb://function.zip     # zipped code deploy karto
