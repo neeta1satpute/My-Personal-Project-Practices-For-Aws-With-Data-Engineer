@@ -2,13 +2,7 @@ name: Deploy Lambda
 
 on:
   push:
-    branches:
-<<<<<<< HEAD
-      - dev   # Only dev branch push var deployment trigger hoil
-=======
-      - dev
->>>>>>> db61262d185127608210edfa64f2d26bfeacc1e3
-
+    branches: [dev] #dev branch madhe push jhalyavar workflow trigger hoto
 jobs:
   deploy:
     runs-on: ubuntu-latest   #GitHub hosted runner (Linux machine)
