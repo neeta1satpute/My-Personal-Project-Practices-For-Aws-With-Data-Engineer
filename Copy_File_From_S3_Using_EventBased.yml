@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Event-based file move from S3 source to destination using Lambda (EventBridge enabled)
+# my-de-eventbased-destination-bucket
+# my-de-eventbased-source-bucket
+
+Parameters:
+  SourceBucket:
+    Type: String
+    Description: Source S3 bucket name
+
+  DestinationBucket:
+    Type: String
+    Description: Destination S3 bucket name
+
+  FunctionName:
+    Type: String
+    Default: MoveFileLambda
+    Description: Lambda function name
+
+Resources:
+
+  # ------------------------------
+  # Source S3 Bucket (EventBridge enabled)
+  # ------------------------------
+  SourceS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref SourceBucket
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+
+  # ------------------------------
+  # Destination S3 Bucket
+  # ------------------------------
+  DestinationBucketResource:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DestinationBucket
+
+  # ------------------------------
+  # Lambda Execution Role
+  # ------------------------------
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${FunctionName}-Role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaS3Policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:CopyObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${SourceBucket}
+                  - !Sub arn:aws:s3:::${SourceBucket}/*
+                  - !Sub arn:aws:s3:::${DestinationBucket}/*
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  # ------------------------------
+  # Lambda Function
+  # ------------------------------
+  MoveFileLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref FunctionName
+      Runtime: python3.11
+      Handler: Lambda_Function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      Code:
+        S3Bucket: my-dataengineer-eventbased-eventbridge-projects
+        S3Key: lambda-code/move-file-lambda/move-file-lambda.zip
+      Environment:
+        Variables:
+          SOURCE_BUCKET: !Ref SourceBucket
+          DEST_BUCKET: !Ref DestinationBucket
+
+  # ------------------------------
+  # EventBridge Rule
+  # ------------------------------
+  S3UploadEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: S3UploadEventRule
+      EventPattern:
+        source:
+          - aws.s3
+        detail-type:
+          - Object Created
+        detail:
+          bucket:
+            name:
+              - !Ref SourceBucket
+      Targets:
+        - Arn: !GetAtt MoveFileLambda.Arn
+          Id: LambdaTarget
+
+  # ------------------------------
+  # Permission for EventBridge ? Lambda
+  # ------------------------------
+  LambdaPermissionForEventBridge:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref MoveFileLambda
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt S3UploadEventRule.Arn
