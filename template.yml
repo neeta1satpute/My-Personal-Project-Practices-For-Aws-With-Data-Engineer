@@ -46,10 +46,8 @@ Resources:
         EventBridgeConfiguration:
           EventBridgeEnabled: true
       Tags:
-        - Key: Name
-          Value: !Sub ${ProjectName}-source-${Environment}
-        - Key: Environment
-          Value: !Ref Environment
+        Name: !Sub ${ProjectName}-source-${Environment}
+        Environment: !Ref Environment
 
   # ============================================
   # S3 Destination Bucket
@@ -70,10 +68,8 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
       Tags:
-        - Key: Name
-          Value: !Sub ${ProjectName}-destination-${Environment}
-        - Key: Environment
-          Value: !Ref Environment
+        Name: !Sub ${ProjectName}-destination-${Environment}
+        Environment: !Ref Environment
 
   # ============================================
   # IAM Role for Lambda
@@ -142,10 +138,8 @@ Resources:
                   name:
                     - !Sub ${ProjectName}-source-${Environment}
       Tags:
-        - Key: Name
-          Value: !Sub ${ProjectName}-copy-${Environment}
-        - Key: Environment
-          Value: !Ref Environment
+        Name: !Sub ${ProjectName}-copy-${Environment}
+        Environment: !Ref Environment
 
   # ============================================
   # EventBridge Rule

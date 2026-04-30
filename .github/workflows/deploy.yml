@@ -3,7 +3,7 @@ name: Deploy AWS Infrastructure with SAM
 on:
   push:
     branches:
-      - main
+      - dev
     paths:
       - 'template.yml'
       - 'lambda/**'
