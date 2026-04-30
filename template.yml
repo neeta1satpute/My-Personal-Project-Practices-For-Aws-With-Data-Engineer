@@ -128,7 +128,7 @@ Resources:
           Type: EventBridgeRule
           Properties:
             RuleName: !Sub ${ProjectName}-s3-copy-rule-${Environment}
-            EventPattern:
+            Pattern:
               source:
                 - aws.s3
               detail-type:
