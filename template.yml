@@ -1,0 +1,206 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  s3-copy-automation
+
+  S3 copy automation with EventBridge and Lambda
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  ProjectName:
+    Type: String
+    Default: s3-copy-automation
+    Description: Project name for resource naming
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
+Resources:
+  # ============================================
+  # S3 Source Bucket
+  # ============================================
+  SourceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ProjectName}-source-${Environment}
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      Tags:
+        Name: !Sub ${ProjectName}-source-${Environment}
+        Environment: !Ref Environment
+
+  # ============================================
+  # S3 Destination Bucket
+  # ============================================
+  DestinationBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ProjectName}-destination-${Environment}
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        Name: !Sub ${ProjectName}-destination-${Environment}
+        Environment: !Ref Environment
+
+  # ============================================
+  # IAM Role for Lambda
+  # ============================================
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ProjectName}-lambda-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: !Sub ${ProjectName}-lambda-s3-policy-${Environment}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt SourceBucket.Arn
+                  - !Sub ${SourceBucket.Arn}/*
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:CopyObject
+                Resource:
+                  - !GetAtt DestinationBucket.Arn
+                  - !Sub ${DestinationBucket.Arn}/*
+
+  # ============================================
+  # Lambda Function
+  # ============================================
+  S3CopyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-copy-${Environment}
+      CodeUri: lambda/
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Timeout: 300
+      MemorySize: 128
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          DESTINATION_BUCKET: !Ref DestinationBucket
+      Events:
+        S3Event:
+          Type: EventBridgeRule
+          Properties:
+            RuleName: !Sub ${ProjectName}-s3-copy-rule-${Environment}
+            EventPattern:
+              source:
+                - aws.s3
+              detail-type:
+                - Object Created
+              detail:
+                bucket:
+                  name:
+                    - !Sub ${ProjectName}-source-${Environment}
+      Tags:
+        Name: !Sub ${ProjectName}-copy-${Environment}
+        Environment: !Ref Environment
+
+  # ============================================
+  # EventBridge Rule
+  # ============================================
+  S3ObjectCreatedRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub ${ProjectName}-s3-copy-rule-${Environment}
+      Description: Rule to trigger Lambda when object is created in source S3 bucket
+      EventBusName: default
+      EventPattern:
+        source:
+          - aws.s3
+        detail-type:
+          - Object Created
+        detail:
+          bucket:
+            name:
+              - !Sub ${ProjectName}-source-${Environment}
+      Targets:
+        - Id: !Sub ${ProjectName}-lambda-target-${Environment}
+          Arn: !GetAtt S3CopyFunction.Arn
+
+  # ============================================
+  # Lambda Permission for EventBridge
+  # ============================================
+  LambdaEventBridgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref S3CopyFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt S3ObjectCreatedRule.Arn
+
+Outputs:
+  SourceBucketName:
+    Description: Source S3 bucket name
+    Value: !Ref SourceBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-SourceBucket
+
+  DestinationBucketName:
+    Description: Destination S3 bucket name
+    Value: !Ref DestinationBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-DestinationBucket
+
+  LambdaFunctionName:
+    Description: Lambda function name
+    Value: !Ref S3CopyFunction
+    Export:
+      Name: !Sub ${AWS::StackName}-FunctionName
+
+  LambdaFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt S3CopyFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-FunctionArn
+
+  LambdaRoleArn:
+    Description: Lambda execution role ARN
+    Value: !GetAtt LambdaExecutionRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-RoleArn
