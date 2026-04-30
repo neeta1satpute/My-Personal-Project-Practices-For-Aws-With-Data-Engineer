@@ -9,7 +9,7 @@ on:
       - 'lambda/**'
   pull_request:
     branches:
-      - main
+      - dev
     paths:
       - 'template.yml'
       - 'lambda/**'
@@ -43,7 +43,7 @@ jobs:
     name: Deploy SAM Stack
     runs-on: ubuntu-latest
     needs: sam-validate
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
     environment: production
     
     steps:
