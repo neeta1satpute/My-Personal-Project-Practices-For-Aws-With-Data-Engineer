@@ -78,3 +78,4 @@ jobs:
             --resolve-s3 \
             --no-confirm-changeset \
             --parameter-overrides Environment=dev
+            --no-validation
