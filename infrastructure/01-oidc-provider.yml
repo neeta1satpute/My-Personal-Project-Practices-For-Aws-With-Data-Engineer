@@ -1,0 +1,17 @@
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Create GitHub Actions OIDC Identity Provider
+
+Resources:
+  GitHubOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+
+Outputs:
+  OIDCProviderArn:
+    Description: ARN of the GitHub Actions OIDC Provider
+    Value: !GetAtt GitHubOIDCProvider.Arn
